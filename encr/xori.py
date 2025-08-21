@@ -15,6 +15,13 @@ class xori():
 		self.pos = (0,0,0)
 	pass
 
+	def list_results(self):
+		out = []
+		for i in cur.execute("select id from encro where `pos` is not null"):
+			#print(dict(i))
+			out.append(i['id'])
+		return out
+	
 	def load_source(self, src):
 		self.src = Image.open(src)
 		if (self.ret is None ) or (self.src.dize == self.ret.size):
@@ -74,9 +81,9 @@ class xori():
 					x=0
 					print(y)
 					if (y >= i.size[1]):
-						self.ret = I
+						#self.ret = Image.new("RGB", self.src.size, (0,0,0))
 						self.pos = None
-						return false, i, "".join(tex)
+						return False, i, "".join(tex)
 			#print(j)
 		self.ret = i
 		self.pos = (x,y,l)
@@ -87,7 +94,11 @@ class xori():
 		stream = io.BytesIO()
 		self.ret.save(stream, format="PNG")
 		if (self.loaded is not None):
-			cur.execute("update encro set img = ?, pos = ? where id = ?", (stream.getvalue(), ",".join(map(str,self.pos)), self.loaded))
+			if (self.pos is not None):
+				ppos = ",".join(map(str,self.pos))
+			else:
+				ppos = None
+			cur.execute("update encro set img = ?, pos = ? where id = ?", (stream.getvalue(), ppos, self.loaded))
 		else:
 			cur.execute("insert into encro (img, pos) values (?,?)", (stream.getvalue(), ",".join(map(str,self.pos))))
 			self.loaded = None
@@ -138,7 +149,7 @@ enc = xori()
 #p = enc.load_source("Image_fx-614.jpg")
 p = enc.load_source("Copy-1.jpg")
 db = sqlite3.connect("imgenc.db")
-db.row_factory = dict_factory
+db.row_factory = sqlite3.Row
 cur = db.cursor()
 
 #cur.execute("drop table encro")
@@ -151,23 +162,47 @@ print(p)
 cap = "\n"
 cap += '''I need to keep adding data because I need to get close to the end! '''
 
-cap += "This is a further test\n" * 99
+cap += "This is a further test. Also, that should be enough to see the system make NEW stuff at the end of this!\n Can I make this process faster please? Mermaid nipples! " * 99
 cap += "\n"
 cap2 = "Nipples! "
 cap *=1
 cap += cap2 * 100
-cap *= 10
+cap *= 5
 import io
 
-
-r,ret = enc.load_result_from_db(3)
-print(r,ret)
+inputs = enc.list_results()
+print(inputs)
+if (len(inputs) > 0):
+	r,ret = enc.load_result_from_db(inputs[0])
+	print(r,ret)
+	
 print(enc.src.size, enc.ret.size)
+print(len(cap))
 
-suc,r,ret = enc.en(cap, x, ret)
+buf_spa = 2500
+while (len(cap) > buf_spa):
+	co, cap = cap[:buf_spa], cap[buf_spa:]
+	#print(len(co), len(cap), len(cap+co))
+	
+	suc,r,ret = enc.en(co, x, ret)
+	while (suc is False):
+		enc.ret_save()
+		r.save("last.png")
+		# Make a new output image
+		enc.loaded = None
+		ret = (0,0,0)
+		enc.ret = None
+		suc,r,ret = enc.en(cap, x, ret)
+
+# Whatever's left
+suc,r,ret = enc.en(co, x, ret)
 while (suc is False):
 	enc.ret_save()
+	r.save("last.png")
 	# Make a new output image
+	enc.loaded = None
+	enc.ret = None
+	ret = (0,0,0)
 	suc,r,ret = enc.en(cap, x, ret)
 
 print(r,ret)
@@ -183,5 +218,5 @@ r.save("t.png")
 
 #cur.execute("insert into encro (`img`,`pos`) values (?,?)", (stream.getvalue() , ",".join(map(str,ret))))
 #db.commit()
-o =enc.de(start=(0,50,0), end=(0,51,0))
-print(o)
+#o =enc.de(start=(0,50,0), end=(0,51,0))
+#print(o)
