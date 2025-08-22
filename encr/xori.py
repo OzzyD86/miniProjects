@@ -1,15 +1,10 @@
 from PIL import Image, ImageDraw
-
-import sqlite3
-def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
+import sqlite3, io
 
 class xori():
 	def __init__(self):
 		self.loaded = None
+		self.lrId = None
 		self.src = None
 		self.ret = None
 		self.pos = (0,0,0)
@@ -88,6 +83,10 @@ class xori():
 		self.ret = i
 		self.pos = (x,y,l)
 		return True, i,(x,y,l)
+	
+	def reset(self):
+		self.loaded = None
+		self.ret = None
 		
 	def ret_save(self):
 		
@@ -101,7 +100,7 @@ class xori():
 			cur.execute("update encro set img = ?, pos = ? where id = ?", (stream.getvalue(), ppos, self.loaded))
 		else:
 			cur.execute("insert into encro (img, pos) values (?,?)", (stream.getvalue(), ",".join(map(str,self.pos))))
-			self.loaded = None
+			self.loaded = cur.lastrowid
 		db.commit()
 
 	def de(self, start=(0,0,0),end=None):
@@ -142,12 +141,41 @@ class xori():
 					x=0
 					#print(y)
 		return out
+	
+	def buff_write(self, tex, img, st = (0,0,0), buffer = 2500):
+		cap = tex
+		ret = st
+		while (len(cap) > buffer):
+			co, cap = cap[:buffer], cap[buffer:]
+			#print(len(co), len(cap), len(cap+co))
+			
+			suc,r,ret = self.en(co, self.src, ret)
+			while (suc is False):
+				self.ret_save()
+				r.save(str(self.loaded) + ".png")
+				# Make a new output image
+				self.reset()
+				ret = (0,0,0)
+				suc,r,ret = self.en(cap, self.src, ret)
+
+		# Whatever's left
+		suc,r,ret = self.en(co, self.src, ret)
+		while (suc is False):
+			self.ret_save()
+			r.save(str(self.loaded) + ".png")
+			# Make a new output image
+			self.reset()
+			ret = (0,0,0)
+			suc,r,ret = self.en(cap, self.src, ret)
 		
+		return suc,r,ret
+
 enc = xori()
 
 #p = enc.load_source("Image_fx-419.jpg")
-#p = enc.load_source("Image_fx-614.jpg")
-p = enc.load_source("Copy-1.jpg")
+p = enc.load_source("Image_fx-614.jpg")
+#p = enc.load_source("Copy-1.jpg")
+
 db = sqlite3.connect("imgenc.db")
 db.row_factory = sqlite3.Row
 cur = db.cursor()
@@ -155,56 +183,29 @@ cur = db.cursor()
 #cur.execute("drop table encro")
 #cur.execute("create table encro (`id` integer not null primary key autoincrement, `pos` text null, `img` blob)")
 
-x = enc.src
-print(x.size)
-print(p)
+#print(enc.src.size)
+#print(p)
 
 cap = "\n"
 cap += '''I need to keep adding data because I need to get close to the end! '''
 
-cap += "This is a further test. Also, that should be enough to see the system make NEW stuff at the end of this!\n Can I make this process faster please? Mermaid nipples! " * 99
+cap += "This is a further test. Also, that should be enough to see the system make NEW stuff at the end of this!\n Can I make this process faster please?" * 99
 cap += "\n"
-cap2 = "Nipples! "
-cap *=1
-cap += cap2 * 100
+
 cap *= 5
-import io
 
 inputs = enc.list_results()
-print(inputs)
+
 if (len(inputs) > 0):
 	r,ret = enc.load_result_from_db(inputs[0])
-	print(r,ret)
-	
-print(enc.src.size, enc.ret.size)
-print(len(cap))
+	#print(r,ret)
+else:
+	ret = (0,0,0)
+#print(enc.src.size, enc.ret.size)
+#print(len(cap))
 
 buf_spa = 2500
-while (len(cap) > buf_spa):
-	co, cap = cap[:buf_spa], cap[buf_spa:]
-	#print(len(co), len(cap), len(cap+co))
-	
-	suc,r,ret = enc.en(co, x, ret)
-	while (suc is False):
-		enc.ret_save()
-		r.save("last.png")
-		# Make a new output image
-		enc.loaded = None
-		ret = (0,0,0)
-		enc.ret = None
-		suc,r,ret = enc.en(cap, x, ret)
-
-# Whatever's left
-suc,r,ret = enc.en(co, x, ret)
-while (suc is False):
-	enc.ret_save()
-	r.save("last.png")
-	# Make a new output image
-	enc.loaded = None
-	enc.ret = None
-	ret = (0,0,0)
-	suc,r,ret = enc.en(cap, x, ret)
-
+suc,r,ret = enc.buff_write(cap, enc.src, ret)
 print(r,ret)
 enc.ret_save()
 
@@ -214,9 +215,9 @@ nn = 150#maths.floor((x.size[1] * x.size[0] * 3) / len(cap))
 
 #for i in range(nn-1):
 #	r,ret = en(cap, x, ret,r)
-r.save("t.png")
+r.save(str(enc.loaded) + ".png")
 
 #cur.execute("insert into encro (`img`,`pos`) values (?,?)", (stream.getvalue() , ",".join(map(str,ret))))
 #db.commit()
-#o =enc.de(start=(0,50,0), end=(0,51,0))
-#print(o)
+o =enc.de(start=(0,17,0), end=(0,17,0))
+print(o)
